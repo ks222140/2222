@@ -1,0 +1,45 @@
+---下面是换弹速度增加
+-- ========== 参数 ==========
+local SPEED_MUL   = 2.0        -- 动画倍速（看着快）
+local EARLY_SEC   = 0.2        -- 提前开火秒数（越小越早）
+-- ==========================
+
+local Players = game:GetService("Players")
+local lp      = Players.LocalPlayer
+
+local animator = nil
+local conn     = nil
+
+-- 拿到 Animator
+lp.CharacterAdded:Connect(function(char)
+    animator = char:WaitForChild("Humanoid"):WaitForChild("Animator")
+end)
+if lp.Character then
+    animator = lp.Character:WaitForChild("Humanoid"):WaitForChild("Animator")
+end
+
+-- 监听换弹动画
+local function onPlay(track)
+    if track.Name:lower():find("reload") then
+        -- 1. 本地倍速
+        track:AdjustSpeed(SPEED_MUL)
+        -- 2. 提前打断+开火
+        local realDur = track.Length / SPEED_MUL
+        local waitTime = realDur - EARLY_SEC
+        if waitTime > 0 then
+            task.wait(waitTime)
+            track:Stop()                       -- 打断动画
+            -- 3. 立即开火（模拟左键）
+            local mouse = game:GetService("UserInputService"):GetMouseLocation()
+            mousemoveabs(mouse.X , mouse.Y)    -- 保证准星不动
+            keypress(0x01)                     -- 按下左键
+            task.wait(0.05)
+            keyrelease(0x01)                   -- 松开左键
+        end
+    end
+end
+
+-- 绑定新动画
+if animator then
+    conn = animator.AnimationPlayed:Connect(onPlay)
+end
