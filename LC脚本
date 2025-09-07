@@ -1,13 +1,18 @@
--- ========== 0. 纯代码 ModernDark UI ==========
-local UIS = game:GetService("UserInputService")
-local Tween = game:GetService("TweenService")
+-- ===== ModernDark 抽屉 UI + 功能开关（单文件） =====
+local UIS        = game:GetService("UserInputService")
+local Tween      = game:GetService("TweenService")
+local Players    = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local camera     = workspace.CurrentCamera
+local lp         = Players.LocalPlayer
 
--- 主框架
+-- === UI 父级 ===
 local gui = Instance.new("ScreenGui")
 gui.Name = "ModernDark"
 gui.ResetOnSpawn = false
 gui.Parent = game:GetService("CoreGui")
 
+-- === 主框 ===
 local frame = Instance.new("Frame")
 frame.Size = UDim2.new(0, 250, 0, 400)
 frame.Position = UDim2.new(0, -260, 0.5, -200)
@@ -17,14 +22,14 @@ frame.BorderSizePixel = 0
 frame.Visible = true
 frame.Parent = gui
 
--- 顶部霓虹条
+-- === 顶部霓虹条 ===
 local topBar = Instance.new("Frame")
 topBar.Size = UDim2.new(1, 0, 0, 3)
 topBar.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 topBar.BorderSizePixel = 0
 topBar.Parent = frame
 
--- 标题
+-- === 标题 ===
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -10, 0, 30)
 title.Position = UDim2.new(0, 5, 0, 5)
@@ -35,19 +40,35 @@ title.Font = Enum.Font.GothamBold
 title.TextSize = 18
 title.Parent = frame
 
--- 容器（放你的功能开关）
+-- === 列表布局 ===
 local list = Instance.new("UIListLayout")
 list.Padding = UDim.new(0, 8)
 list.SortOrder = Enum.SortOrder.LayoutOrder
 list.Parent = frame
 
-local padding = Instance.new("UIPadding")
-padding.PaddingTop = UDim.new(0, 40)
-padding.PaddingLeft = UDim.new(0, 10)
-padding.PaddingRight = UDim.new(0, 10)
-padding.Parent = frame
+Instance.new("UIPadding", frame).PaddingTop = UDim.new(0, 40)
 
--- ========== 1. 开关模板函数（你复制就能用） ==========
+-- === 抽屉按钮 ===
+local dragBtn = Instance.new("TextButton")
+dragBtn.Size = UDim2.new(0, 30, 0, 60)
+dragBtn.Position = UDim2.new(1, 0, 0.5, -30)
+dragBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+dragBtn.Text = ">"
+dragBtn.TextColor3 = Color3.new(1, 1, 1)
+dragBtn.Font = Enum.Font.GothamBold
+dragBtn.TextSize = 18
+dragBtn.BorderSizePixel = 0
+dragBtn.Parent = frame
+
+local out = true
+dragBtn.MouseButton1Click:Connect(function()
+    out = not out
+    dragBtn.Text = out and "<" or ">"
+    Tween:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+                 {Position = out and UDim2.new(0, 0, 0.5, -200) or UDim2.new(0, -260, 0.5, -200)}):Play()
+end)
+
+-- === 开关模板 ==========
 function addToggle(text, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, 0, 0, 35)
@@ -69,43 +90,20 @@ function addToggle(text, callback)
     return btn
 end
 
--- ========== 2. 抽屉开关（滑出/滑入） ==========
-local dragBtn = Instance.new("TextButton")
-dragBtn.Size = UDim2.new(0, 30, 0, 60)
-dragBtn.Position = UDim2.new(1, 0, 0.5, -30)
-dragBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-dragBtn.Text = ">"
-dragBtn.TextColor3 = Color3.new(1, 1, 1)
-dragBtn.Font = Enum.Font.GothamBold
-dragBtn.TextSize = 18
-dragBtn.BorderSizePixel = 0
-dragBtn.Parent = frame
-
-local out = true
-dragBtn.MouseButton1Click:Connect(function()
-    out = not out
-    dragBtn.Text = out and "<" or ">"
-    local goal = out and UDim2.new(0, 0, 0.5, -200) or UDim2.new(0, -260, 0.5, -200)
-    Tween:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = goal}):Play()
-end)
-
--- 1. 快速换弹
+-- ========== 功能 1：快速换弹 ==========
 addToggle("快速换弹", function(on)
     if on then
-        -- 压行后的整段 reload 加速
         local a,b=game:GetService("Players").LocalPlayer,game:GetService("UserInputService")local c,d;local function e(f)if f.Name:lower():find("reload")then f:AdjustSpeed(2)local g=f.Length/2-0.2;if g>0 then task.wait(g)f:Stop()local h=b:GetMouseLocation()mousemoveabs(h.X,h.Y)keypress(0x01)task.wait(0.05)keyrelease(0x01)end end end;a.CharacterAdded:Connect(function(i)c=i:WaitForChild("Humanoid"):WaitForChild("Animator")d=c.AnimationPlayed:Connect(e)end)if a.Character then c=a.Character:WaitForChild("Humanoid"):WaitForChild("Animator")d=c.AnimationPlayed:Connect(e)end
     else
-        -- 关：断开监听即可
-        if d then d:Disconnect() d=nil end
+        if _G.reloadConn then _G.reloadConn:Disconnect() _G.reloadConn=nil end
     end
 end)
 
--- 2. 敌方 ESP（单层，不嵌套）
+-- ========== 功能 2：敌方 ESP ==========
 addToggle("敌方 ESP", function(on)
     if on then
         local RunService,Players,camera,lp = game:GetService("RunService"),game:GetService("Players"),workspace.CurrentCamera,Players.LocalPlayer local worldToViewport = camera.WorldToViewportPoint local COLOR_ENEMY,COLOR_TEAM,COLOR_HEAD,COLOR_DIR = Color3.fromRGB(255,0,0),Color3.fromRGB(0,255,0),Color3.fromRGB(255,255,0),Color3.fromRGB(50,255,50) local espCache = {} local function createDrawing(t,p) local o = Drawing.new(t) for k,v in pairs(p) do o[k]=v end return o end local function destroyESP(p) local d = espCache[p] if d then for _,l in ipairs(d.boxLines) do l:Remove() end d.headDot:Remove() d.dirLine:Remove() espCache[p]=nil end end local function updateESP(p) if not p.Character then return end local head,root = p.Character:FindFirstChild("Head"),p.Character:FindFirstChild("HumanoidRootPart") if not head or not root then return end local headPos,headVis = worldToViewport(camera,head.Position) local rootPos,rootVis = worldToViewport(camera,root.Position) if not headVis or not rootVis then local d = espCache[p] if d then for _,l in ipairs(d.boxLines) do l.Visible=false end d.headDot.Visible=false d.dirLine.Visible=false end return end local height,width = math.abs(headPos.Y-rootPos.Y),height*0.5 local topLeft,topRight,botLeft,botRight = Vector2.new(headPos.X-width,headPos.Y),Vector2.new(headPos.X+width,headPos.Y),Vector2.new(rootPos.X-width,rootPos.Y),Vector2.new(rootPos.X+width,rootPos.Y) local isEnemy = (lp.Team~=p.Team) or (lp.Team==nil and p~=lp) local boxColor = isEnemy and COLOR_ENEMY or COLOR_TEAM if not espCache[p] then local lines = {} for i=1,4 do lines[i]=createDrawing("Line",{Thickness=1,Color=boxColor}) end local dot = createDrawing("Circle",{Radius=3,Color=COLOR_HEAD,Filled=true}) local dir = createDrawing("Line",{Thickness=2,Color=COLOR_DIR}) espCache[p]={boxLines=lines,headDot=dot,dirLine=dir} end local d = espCache[p] for i=1,4 do local l = d.boxLines[i] l.From,l.To = ({topLeft,topRight,botLeft,botRight,topLeft,botLeft,topRight,botRight})[i],({topRight,botRight,botLeft,topRight,botLeft,botRight,topRight,botRight})[i] l.Visible,l.Color = true,boxColor end d.headDot.Position = Vector2.new(headPos.X,headPos.Y-5) local vel = root.Velocity if vel.Magnitude>0.1 then local fut = worldToViewport(camera,root.Position+vel.unit*3) d.dirLine.From,d.dirLine.To,d.dirLine.Visible = Vector2.new(headPos.X,headPos.Y-8),Vector2.new(fut.X,fut.Y),true else d.dirLine.Visible=false end end for _,plr in ipairs(Players:GetPlayers()) do if plr~=lp then task.spawn(function() repeat task.wait() until plr.Character updateESP(plr) end) end end Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(function() updateESP(p) end) end) Players.PlayerRemoving:Connect(destroyESP) RunService.RenderStepped:Connect(function() for _,p in ipairs(Players:GetPlayers()) do if p~=lp then updateESP(p) end end end)
     else
-        -- 关：清屏
         for _,v in pairs(espCache) do destroyESP(v) end
         espCache = {}
     end
